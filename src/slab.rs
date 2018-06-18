@@ -1,8 +1,18 @@
-use alloc::allocator::{AllocErr, Layout};
+//use alloc::allocator::{AllocErr, Layout};
+extern crate std;
+use core::alloc::{AllocErr, Layout, Opaque};
+use core::ptr::NonNull;
+use std::convert::From;
 
 pub struct Slab {
     block_size: usize,
     free_block_list: FreeBlockList,
+}
+
+impl From<usize> for NonNull<Opaque> {
+    fn from(addr: usize) -> Self {
+        NonNull { pointer: addr }
+    }
 }
 
 impl Slab {
@@ -26,14 +36,15 @@ impl Slab {
         }
     }
 
-    pub fn allocate(&mut self, layout: Layout) -> Result<*mut u8, AllocErr> {
+    pub fn allocate(&mut self, layout: Layout) -> Result<NonNull<Opaque>, AllocErr> {
         match self.free_block_list.pop() {
-            Some(block) => Ok(block.addr() as *mut u8),
+            //Some(block) => Ok(block.addr() as NonNull<Opaque>),
+            Some(block) => Ok(NonNull<Opaque>::from(block.addr())),
             None => Err(AllocErr::Exhausted { request: layout }),
         }
     }
 
-    pub fn deallocate(&mut self, ptr: *mut u8) {
+    pub fn deallocate(&mut self, ptr: NonNull<Opaque>) {
         let ptr = ptr as *mut FreeBlock;
         unsafe {self.free_block_list.push(&mut *ptr);}
     }
@@ -73,7 +84,7 @@ impl FreeBlockList {
             node
         })
     }
- 
+
     fn push(&mut self, free_block: &'static mut FreeBlock) {
         free_block.next = self.head.take();
         self.len += 1;
