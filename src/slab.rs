@@ -2,7 +2,7 @@
 extern crate std;
 use core::alloc::{AllocErr, Layout, Opaque};
 use core::ptr::NonNull;
-use std::convert::From;
+use slab::std::convert::From;
 
 pub struct Slab {
     block_size: usize,
@@ -39,7 +39,7 @@ impl Slab {
     pub fn allocate(&mut self, layout: Layout) -> Result<NonNull<Opaque>, AllocErr> {
         match self.free_block_list.pop() {
             //Some(block) => Ok(block.addr() as NonNull<Opaque>),
-            Some(block) => Ok(NonNull<Opaque>::from(block.addr())),
+            Some(block) => Ok(NonNull::from(block.addr())),
             None => Err(AllocErr::Exhausted { request: layout }),
         }
     }
