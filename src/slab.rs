@@ -1,19 +1,29 @@
+#![feature(nonzero)]
 //use alloc::allocator::{AllocErr, Layout};
 extern crate std;
 use core::alloc::{AllocErr, Layout, Opaque};
 use core::ptr::NonNull;
-use slab::std::convert::From;
+use core::ptr::NonZero;
+//use slab::std::num::NonZeroU8;
+//use slab::std::convert::From;
 
 pub struct Slab {
     block_size: usize,
     free_block_list: FreeBlockList,
 }
 
-impl From<usize> for NonNull<Opaque> {
+/*
+struct MyNonNull {
+    NN: NonNull<Opaque>,
+}
+impl From<usize> for MyNonNull {
     fn from(addr: usize) -> Self {
-        NonNull { pointer: addr }
+        let pointer = addr as NonZero;
+        let NN = NonNull { pointer };
+        MyNonNull { NN }
     }
 }
+*/
 
 impl Slab {
     pub unsafe fn new(start_addr: usize, slab_size: usize, block_size: usize) -> Slab {
@@ -39,13 +49,16 @@ impl Slab {
     pub fn allocate(&mut self, layout: Layout) -> Result<NonNull<Opaque>, AllocErr> {
         match self.free_block_list.pop() {
             //Some(block) => Ok(block.addr() as NonNull<Opaque>),
-            Some(block) => Ok(NonNull::from(block.addr())),
-            None => Err(AllocErr::Exhausted { request: layout }),
+            //Some(block) => Ok(MyNonNull::from(block.addr()).NN),
+            //Some(block) => Ok(unsafe { NonNull::new_unchecked(block.addr() as *mut u8) }),
+            Some(block) => Ok(unsafe { NonNull{ pointer: NonZero::new(block.addr() as u8).unwrap() } }),
+            //None => Err(AllocErr::Exhausted { request: layout }),
+            None => Err(AllocErr),
         }
     }
 
     pub fn deallocate(&mut self, ptr: NonNull<Opaque>) {
-        let ptr = ptr as *mut FreeBlock;
+        let ptr = ptr.as_ptr() as *mut FreeBlock;
         unsafe {self.free_block_list.push(&mut *ptr);}
     }
 
